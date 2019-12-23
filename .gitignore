@@ -1,0 +1,11 @@
+# Derived artifacts
+target/
+
+# Mac
+.DS_Store
+
+# Eclipse
+.metadata/
+.settings/
+.classpath
+.project
