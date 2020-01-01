@@ -40,6 +40,9 @@ YOFL's support for pre-deployment of the OSGi runtime can help then to reduce th
 * **Experiment-friendly:**
 Because it is easy to make a custom framework distribution and launch different distributions based on different framework implementations in the same way, it is easy to experiment and compare an application behaviour with different frameworks.
 
+Interested?
+Try it out!
+
 
 ## Getting started
 
