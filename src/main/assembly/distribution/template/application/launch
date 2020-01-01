@@ -1,0 +1,57 @@
+#!/bin/sh
+
+# ---------------------------------------------------------------------------
+# Application launch script
+#
+# This script starts the container with the 'launch' command that gets all
+# application defaults.
+#
+# Environment variables can be used to set or override some parameters. Do
+# not set the variables in this script. For a particular deployment or
+# application the variables should be rather set by a specific wrapper.
+#
+# JAVA
+#   The command to launch JVM. Default assumes 'java' command available from
+#   PATH.
+#
+# JAVA_OPTS
+#   Additional Java runtime options passed to the JAVA command.
+#
+# SERVICEAPP
+#   The command to launch the container. By default the built-in distribution
+#   is used.
+#
+# YOFL_LOGGING_FILE
+#   The desired output stream for the launcher logger. The value may be
+#   'stderr' or 'stdout', which applies as the default, or a file name.
+#
+# YOFL_LOGGING_LEVEL
+#   The logging level for the container launcher.
+#
+# ---------------------------------------------------------------------------
+
+# Resolve links ($0 may be a softlink)
+RUNCMD="$0"
+
+while [ -h "$RUNCMD" ]; do
+  ls=`ls -ld "$RUNCMD"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    RUNCMD="$link"
+  else
+    RUNCMD=`dirname "$RUNCMD"`/"$link"
+  fi
+done
+
+# Get standard environment variables
+RUNDIR=`dirname "$RUNCMD"`
+
+# Set the application home
+export SERVICEBOX_APP="$RUNDIR"
+# Set the command to run the application
+[ -z "$SERVICEAPP" ] && SERVICEAPP="${SERVICEBOX_APP}/sys/serviceapp"
+# Use the default kit
+export SERVICEBOX_KIT=
+export SERVICEBOX_KIT_PATH=
+# Launch the application
+"$SERVICEAPP" "$@"

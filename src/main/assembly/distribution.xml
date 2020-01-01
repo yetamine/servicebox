@@ -1,0 +1,78 @@
+<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
+
+  <id>distribution</id>
+
+  <baseDirectory>/</baseDirectory>
+
+  <formats>
+    <format>zip</format>
+    <format>tgz</format>
+  </formats>
+
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>kits/default/core/base</outputDirectory>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
+      <scope>compile</scope>
+      <includes>
+        <include>*:*:jar:*</include>
+      </includes>
+    </dependencySet>
+
+    <dependencySet>
+      <outputDirectory>kits/default/boot</outputDirectory>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
+      <includes>
+        <include>org.apache.felix:org.apache.felix.framework:jar:*</include>
+      </includes>
+    </dependencySet>
+
+    <dependencySet>
+      <outputDirectory>bin</outputDirectory>
+      <useProjectArtifact>false</useProjectArtifact>
+      <unpack>true</unpack>
+      <includes>
+        <include>net.yetamine:net.yetamine.osgi.launcher:tgz:*</include>
+      </includes>
+    </dependencySet>
+  </dependencySets>
+
+  <fileSets>
+    <fileSet>
+      <outputDirectory/>
+      <directory/>
+      <includes>
+        <include>LICENSE</include>
+        <include>NOTICE</include>
+      </includes>
+      <lineEnding>unix</lineEnding>
+    </fileSet>
+
+    <fileSet>
+      <outputDirectory/>
+      <directory>src/main/assembly/distribution</directory>
+      <excludes>
+        <exclude>**/.gitkeep</exclude>
+        <exclude>serviceapp</exclude>
+        <exclude>servicebox</exclude>
+        <exclude>servicepad</exclude>
+        <exclude>template/application/launch</exclude>
+      </excludes>
+    </fileSet>
+
+    <fileSet>
+      <outputDirectory/>
+      <directory>src/main/assembly/distribution</directory>
+      <includes>
+        <include>serviceapp</include>
+        <include>servicebox</include>
+        <include>servicepad</include>
+        <include>template/application/launch</include>
+      </includes>
+      <fileMode>0755</fileMode>
+      <lineEnding>unix</lineEnding>
+    </fileSet>
+  </fileSets>
+</assembly>

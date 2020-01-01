@@ -1,0 +1,135 @@
+#!/bin/sh
+
+# -----------------------------------------------------------------------------
+# ServiceBox launch script
+#
+# This script launches the container with the provided parameters. It merely
+# takes care of supplying the correct boot class path, so that the container
+# could launch.
+#
+# Environment variables can be used to set or override some parameters. Do
+# not set the variables in this script. For a particular deployment or
+# application the variables should be rather set by a specific wrapper.
+#
+# JAVA
+#   The command to launch JVM. Default assumes 'java' command available from
+#   PATH.
+#
+# JAVA_OPTS
+#   Additional Java runtime options passed to the JAVA command.
+#
+# SERVICEBOX_AUTOPATH
+#   The path to the directory which shall be scanned for .jar files to be
+#   added to the boot class path.
+#
+# SERVICEBOX_BOOTPATH
+#   The class path to be appended to the boot class path.
+#
+# SERVICEBOX_KIT
+#   The name of the ServiceBox kit to pick, depending on SERVICEBOX_KIT_PATH.
+#   If SERVICEBOX_KIT_PATH is empty, built-in kits are considered; if both
+#   variables are empty, 'default' built-in kit is chosen.
+#
+# SERVICEBOX_KIT_PATH
+#   The path to the ServiceBox kit location. If empty, a built-in kit shall
+#   be used according to SERVICEBOX_KIT. Otherwise the combination of both
+#   variables result in the location of the target kit.
+#
+# YOFL_LOGGING_FILE
+#   The desired output stream for the launcher logger. The value may be
+#   'stderr' or 'stdout', which applies as the default, or a file name.
+#
+# YOFL_LOGGING_LEVEL
+#   The logging level for the container launcher.
+#
+# -----------------------------------------------------------------------------
+
+# Resolve links ($0 may be a softlink)
+RUNCMD="$0"
+
+while [ -h "$RUNCMD" ]; do
+  ls=`ls -ld "$RUNCMD"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    RUNCMD="$link"
+  else
+    RUNCMD=`dirname "$RUNCMD"`/"$link"
+  fi
+done
+
+# Get standard environment variables
+RUNDIR=`dirname "$RUNCMD"`
+
+# OS specific support. All flag variables MUST be set to either true or false.
+cygwin=false
+
+case "`uname`" in
+  CYGWIN*)  cygwin=true;;
+  MINGW*)   cygwin=true;;
+esac
+
+# For Cygwin, ensure paths are in UNIX format before anything is touched
+if $cygwin; then
+  [ -n "$SERVICEBOX_BOOTPATH" ] && SERVICEBOX_BOOTPATH=`cygpath --path --unix "$SERVICEBOX_BOOTPATH"`
+  [ -n "$SERVICEBOX_KIT_PATH" ] && SERVICEBOX_KIT_PATH=`cygpath --unix "$SERVICEBOX_KIT_PATH"`
+  [ -n "$SERVICEBOX_KIT" ] && SERVICEBOX_KIT=`cygpath --unix "$SERVICEBOX_KIT"`
+fi
+
+SERVICEBOX_HOME=`cd "$RUNDIR" >/dev/null; pwd`
+
+# Set the kit to use
+if [ -z "$SERVICEBOX_KIT_PATH" ]; then
+  [ -z "$SERVICEBOX_KIT" ] && SERVICEBOX_KIT=default
+  SERVICEBOX_KIT_PATH="${SERVICEBOX_HOME}/kits/${SERVICEBOX_KIT}"
+else
+  [ -n "$SERVICEBOX_KIT" ] && SERVICEBOX_KIT_PATH="${SERVICEBOX_KIT_PATH}/${SERVICEBOX_KIT}"
+fi
+
+# Clear it because SERVICEBOX_KIT_PATH now points to the kit directly, although
+# it is not strictly necessary. However, it preserves the documented semantics.
+SERVICEBOX_KIT=
+
+if [ ! -d "${SERVICEBOX_KIT_PATH}/etc" ]; then
+  echo "The kit determined from SERVICEBOX_KIT_PATH and SERVICEBOX_KIT environment" >&2
+  echo "variables is missing or incomplete:" >&2
+  echo "${SERVICEBOX_KIT_PATH}" >&2
+  exit 1
+fi
+
+# Specify the boot class path sources
+YOFL_AUTOPATH="$SERVICEBOX_AUTOPATH"
+YOFL_BOOTPATH="${SERVICEBOX_KIT_PATH}/boot/classes"
+
+# Compose the local automatic boot path
+for file in "${SERVICEBOX_KIT_PATH}/boot"/*.jar; do
+  YOFL_BOOTPATH="${YOFL_BOOTPATH}:${file}"
+done
+
+# Finish the boot path composition with the externally supplied part
+[ -n "$SERVICEBOX_BOOTPATH" ] && YOFL_BOOTPATH="${YOFL_BOOTPATH}:${SERVICEBOX_BOOTPATH}"
+
+# Set the container bootstrap command before fiddling with the paths
+YOFL="${SERVICEBOX_HOME}/bin/yofl"
+
+# Now find out whether the options file exists
+[ -f "${SERVICEBOX_KIT_PATH}/boot/jpms.options" ] && JPMS_OPTIONS="${SERVICEBOX_KIT_PATH}/boot/jpms.options"
+
+# For Cygwin, switch paths to Windows format before passing arguments
+if $cygwin; then
+  [ -n "$JPMS_OPTIONS" ] && JPMS_OPTIONS=`cygpath --windows "$JPMS_OPTIONS"`
+  YOFL_BOOTPATH=`cygpath --path --windows "$YOFL_BOOTPATH"`
+fi
+
+# Supply JPMS options file if provided
+[ -n "$JPMS_OPTIONS" ] && JDK_JAVA_OPTIONS="'@${JPMS_OPTIONS}' ${JDK_JAVA_OPTIONS}"
+# Grab the control over java.util.logging
+JAVA_OPTS="-Djava.util.logging.config.class=net.yetamine.osgi.launcher.LoggerConfiguration $JAVA_OPTS"
+
+# Ensure the variables are exported
+export JAVA_OPTS
+export JDK_JAVA_OPTIONS
+export YOFL_AUTOPATH
+export YOFL_BOOTPATH
+
+# Launch the container
+"$YOFL" "$@"

@@ -1,1 +1,4 @@
-*.sh            eol=lf
+/src/main/assembly/distribution/**                              eol=lf
+
+*.cmd                                                           eol=crlf
+*.sh                                                            eol=lf

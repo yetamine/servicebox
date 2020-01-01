@@ -1,0 +1,121 @@
+#!/bin/sh
+
+# -----------------------------------------------------------------------------
+# ServiceBox application launch script
+#
+# This script invokes ServiceBox configured to use the application's resource
+# to deploy the application's bundles and configuration files.
+#
+# Environment variables can be used to set or override some parameters. Do not
+# not set the variables in this script.
+#
+# JAVA
+#   The command to launch JVM. Default employs 'java' command available from
+#   PATH.
+#
+# JAVA_OPTS
+#   Additional Java runtime options passed to JAVA command.
+#
+# SERVICEBOX_APP
+#   The directory where the application to launch resides. By default the
+#   current working directory is used.
+#
+# SERVICEBOX_KIT
+#   The name of the ServiceBox kit to pick, depending on SERVICEBOX_KIT_PATH.
+#   If SERVICEBOX_KIT_PATH is empty, built-in kits are considered; if both
+#   variables are empty, 'default' built-in kit is chosen.
+#
+# SERVICEBOX_KIT_PATH
+#   The path to the ServiceBox kit location. If empty, a built-in kit shall
+#   be used according to SERVICEBOX_KIT. Otherwise the combination of both
+#   variables result in the location of the target kit.
+#
+# YOFL_LOGGING_FILE
+#   The desired output stream for the launcher logger. The value may be
+#   'stderr' or 'stdout', which applies as the default, or a file name.
+#
+# YOFL_LOGGING_LEVEL
+#   The logging level for the container launcher.
+#
+# -----------------------------------------------------------------------------
+
+# OS specific support. All flag variables _must_ be set to either true or false.
+cygwin=false
+
+case "`uname`" in
+  CYGWIN*)  cygwin=true;;
+  MINGW*)   cygwin=true;;
+esac
+
+# Resolve links ($0 may be a softlink)
+RUNCMD="$0"
+
+while [ -h "$RUNCMD" ]; do
+  ls=`ls -ld "$RUNCMD"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    RUNCMD="$link"
+  else
+    RUNCMD=`dirname "$RUNCMD"`/"$link"
+  fi
+done
+
+# Set environment variables
+RUNDIR=`dirname "$RUNCMD"`
+SERVICEBOX_HOME=`cd "$RUNDIR" >/dev/null; pwd`
+
+# Set the command
+SERVICEBOX="${SERVICEBOX_HOME}/servicebox"
+
+if [ ! -f "$SERVICEBOX" ]; then
+  echo "The SERVICEBOX_HOME environment variable is not defined correctly." >&2
+  echo "This environment variable is needed to run this program." >&2
+  exit 1
+fi
+
+# For Cygwin, ensure paths are in UNIX format before anything is touched
+if $cygwin; then
+  [ -n "$SERVICEBOX_APP" ] && SERVICEBOX_APP=`cygpath --unix "$SERVICEBOX_APP"`
+fi
+
+# Set the application home
+[ -z "$SERVICEBOX_APP" ] && SERVICEBOX_APP='.'
+
+if [ ! -d "${SERVICEBOX_APP}/etc" ]; then
+  echo "The SERVICEBOX_APP environment variable is not defined correctly." >&2
+  echo "This environment variable is needed to run this program." >&2
+  exit 1
+fi
+
+# Prepare settings for ServiceBox
+SERVICEBOX_AUTOPATH="${SERVICEBOX_APP}/boot"
+SERVICEBOX_BOOTPATH="${SERVICEBOX_APP}/boot/classes"
+
+# Now find out whether the options file exists
+[ -f "${SERVICEBOX_APP}/boot/jpms.options" ] && JPMS_OPTIONS="${SERVICEBOX_APP}/boot/jpms.options"
+
+# For Cygwin, switch paths to Windows format before running JAVA
+if $cygwin; then
+  [ -n "$JPMS_FILE" ] && JPMS_FILE=`cygpath --windows "$JPMS_FILE"`
+  SERVICEBOX_APP=`cygpath --windows "$SERVICEBOX_APP"`
+  SERVICEBOX_AUTOPATH=`cygpath --windows "$SERVICEBOX_AUTOPATH"`
+  SERVICEBOX_BOOTPATH=`cygpath --path --windows "$SERVICEBOX_BOOTPATH"`
+fi
+
+# Supply JPMS options file
+[ -n "$JPMS_OPTIONS" ] && JDK_JAVA_OPTIONS="'@${JPMS_OPTIONS}' ${JDK_JAVA_OPTIONS}"
+
+# Ensure the variables are exported
+export JDK_JAVA_OPTIONS
+export SERVICEBOX_AUTOPATH
+export SERVICEBOX_BOOTPATH
+
+# Launch the container
+
+"$SERVICEBOX"                                                             \
+  --create-configuration "${SERVICEBOX_APP}/conf"                         \
+  --framework-properties "${SERVICEBOX_APP}/etc/framework.properties"     \
+  --launching-properties "${SERVICEBOX_APP}/etc/launching.properties"     \
+  --system-properties "${SERVICEBOX_APP}/etc/system.properties"           \
+  --bundle-store "${SERVICEBOX_APP}/core"                                 \
+  "$@"

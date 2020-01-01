@@ -1,0 +1,117 @@
+#!/bin/sh
+
+# -----------------------------------------------------------------------------
+# ServiceBox launch script
+#
+# This script starts the container with the 'launch' command that gets both
+# the default and user-supplied arguments. So the script takes care of both
+# the correct boot class path alongside standard bundle set and options.
+#
+# Environment variables can be used to set or override some parameters. Do
+# not set the variables in this script. For a particular deployment or
+# application the variables should be rather set by a specific wrapper.
+#
+# JAVA
+#   The command to launch JVM. Default assumes 'java' command available from
+#   PATH.
+#
+# JAVA_OPTS
+#   Additional Java runtime options passed to the JAVA command.
+#
+# SERVICEBOX_AUTOPATH
+#   The path to the directory which shall be scanned for .jar files to be
+#   added to the boot class path.
+#
+# SERVICEBOX_BOOTPATH
+#   The class path to be appended to the boot class path.
+#
+# SERVICEBOX_KIT
+#   The name of the ServiceBox kit to pick, depending on SERVICEBOX_KIT_PATH.
+#   If SERVICEBOX_KIT_PATH is empty, built-in kits are considered; if both
+#   variables are empty, 'default' built-in kit is chosen.
+#
+# SERVICEBOX_KIT_PATH
+#   The path to the ServiceBox kit location. If empty, a built-in kit shall
+#   be used according to SERVICEBOX_KIT. Otherwise the combination of both
+#   variables result in the location of the target kit.
+#
+# YOFL_LOGGING_FILE
+#   The desired output stream for the launcher logger. The value may be
+#   'stderr' or 'stdout', which applies as the default, or a file name.
+#
+# YOFL_LOGGING_LEVEL
+#   The logging level for the container launcher.
+#
+# -----------------------------------------------------------------------------
+
+# Resolve links ($0 may be a softlink)
+RUNCMD="$0"
+
+while [ -h "$RUNCMD" ]; do
+  ls=`ls -ld "$RUNCMD"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    RUNCMD="$link"
+  else
+    RUNCMD=`dirname "$RUNCMD"`/"$link"
+  fi
+done
+
+# Get standard environment variables
+RUNDIR=`dirname "$RUNCMD"`
+
+# OS specific support. All flag variables MUST be set to either true or false.
+cygwin=false
+
+case "`uname`" in
+  CYGWIN*)  cygwin=true;;
+  MINGW*)   cygwin=true;;
+esac
+
+# For Cygwin, ensure paths are in UNIX format before anything is touched
+if $cygwin; then
+  [ -n "$SERVICEBOX_KIT" ] && SERVICEBOX_KIT=`cygpath --unix "$SERVICEBOX_KIT"`
+  [ -n "$SERVICEBOX_KIT_PATH" ] && SERVICEBOX_KIT_PATH=`cygpath --unix "$SERVICEBOX_KIT_PATH"`
+fi
+
+SERVICEBOX_HOME=`cd "$RUNDIR" >/dev/null; pwd`
+# Save the command to launch the container
+SERVICEPAD="${SERVICEBOX_HOME}/servicepad"
+
+# Set the kit to use
+if [ -z "$SERVICEBOX_KIT_PATH" ]; then
+  [ -z "$SERVICEBOX_KIT" ] && SERVICEBOX_KIT=default
+  SERVICEBOX_KIT_PATH="${SERVICEBOX_HOME}/kits/${SERVICEBOX_KIT}"
+else
+  [ -n "$SERVICEBOX_KIT" ] && SERVICEBOX_KIT_PATH="${SERVICEBOX_KIT_PATH}/${SERVICEBOX_KIT}"
+fi
+
+# Clear it because SERVICEBOX_KIT_PATH now points to the kit directly, which
+# preserves the documented semantics. This is actually important for running
+# SERVICEPAD as it would check the variables again.
+SERVICEBOX_KIT=
+
+if [ ! -d "${SERVICEBOX_KIT_PATH}/etc" ]; then
+  echo "The kit determined from SERVICEBOX_KIT_PATH and SERVICEBOX_KIT environment" >&2
+  echo "variables is missing or incomplete:" >&2
+  echo "${SERVICEBOX_KIT_PATH}" >&2
+  exit 1
+fi
+
+# For Cygwin, switch paths to Windows format before passing arguments
+if $cygwin; then
+  SERVICEBOX_KIT_PATH=`cygpath --windows "$SERVICEBOX_KIT_PATH"`
+fi
+
+# Ensure the variables are exported
+export SERVICEBOX_KIT
+export SERVICEBOX_KIT_PATH
+
+# Launch the container
+
+"$SERVICEPAD" launch                                                        \
+  --framework-properties "${SERVICEBOX_KIT_PATH}/etc/framework.properties"  \
+  --launching-properties "${SERVICEBOX_KIT_PATH}/etc/launching.properties"  \
+  --system-properties "${SERVICEBOX_KIT_PATH}/etc/system.properties"        \
+  --bundle-store "${SERVICEBOX_KIT_PATH}/core"                              \
+  "$@"

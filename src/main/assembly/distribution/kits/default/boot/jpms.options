@@ -1,0 +1,5 @@
+# Java options for Apache Felix running with JPMS (Java Platform Module System)
+
+--add-opens java.base/java.lang=ALL-UNNAMED
+--add-opens java.base/java.net=ALL-UNNAMED
+--add-opens java.base/java.security=ALL-UNNAMED
